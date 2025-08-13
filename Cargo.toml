@@ -1,0 +1,10 @@
+[package]
+name = "HTX-Client-Server-Crate"
+version = "0.1.0"
+authors = ["Kaden Daya <kaden.daya@icloud.com>"]
+edition = "2024"
+readme = "README.md"
+license = "MIT"
+license-file = "LICENSE.md"
+
+[dependencies]

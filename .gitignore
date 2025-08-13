@@ -1,0 +1,9 @@
+*.key
+*.env
+./env
+
+# TLS Certs
+*.pem
+
+# Cargo
+/target
