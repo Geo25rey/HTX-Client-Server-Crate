@@ -1,0 +1,29 @@
+[package]
+name = "HTX-Client-Server-Crate"
+version = "0.1.0"
+authors = ["Kaden Daya <kaden.daya@icloud.com>"]
+edition = "2024"
+readme = "README.md"
+license = "MIT"
+license-file = "LICENSE.md"
+
+[dependencies]
+rustls = "0.22"
+rustls-pemfile = "2.0"
+webpki-roots = "0.26"
+
+# Main binary
+[[bin]]
+name = "htx-tunnel"
+path = "src/main.rs"
+
+# Optional standalone binaries (use --features standalone)
+[[bin]]
+name = "server-standalone"
+path = "src/server.rs"
+required-features = ["standalone"]
+
+[[bin]]
+name = "client-standalone"
+path = "src/client.rs"
+required-features = ["standalone"]
