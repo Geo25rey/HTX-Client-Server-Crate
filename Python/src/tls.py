@@ -47,7 +47,9 @@ class client:
             return False, self.error
             
         try:
-            self.socket.sendall(data.encode('utf-8'))
+            if isinstance(data, str):
+                return False, "Data must be bytes"
+            self.socket.sendall(len(data).to_bytes(4, 'big') + data)
             return True, "Data sent successfully"
         except BrokenPipeError:
             return False, "Connection broken - cannot send data"
@@ -63,13 +65,23 @@ class client:
     def receive(self):
         if self.error:
             return False, self.error
-            
         try:
-            while True:
-                data = self.socket.recv(1024)
-                if not data:
-                    break
-                return True, data
+            hdr = bytearray()
+            while len(hdr) < 4:
+                chunk = self.socket.recv(4 - len(hdr))
+                if not chunk:
+                    return False, "Connection closed while reading length"
+                hdr.extend(chunk)
+            length = int.from_bytes(hdr, 'big')
+
+            buf = bytearray()
+            while len(buf) < length:
+                chunk = self.socket.recv(length - len(buf))
+                if not chunk:
+                    return False, "Connection closed while reading payload"
+                buf.extend(chunk)
+
+            return True, bytes(buf)
         except ConnectionResetError:
             return False, "Connection reset by server"
         except ssl.SSLError as e:
@@ -150,7 +162,7 @@ class server:
             
         try:
             self.conn, self.addr = self.socket.accept()
-            return True, f"Connected by {self.addr}"
+            return True, f"Connected by {self.addr}", [self.conn, self.addr]
         except socket.error as e:
             return False, f"Socket error accepting connection: {e}"
         except ssl.SSLError as e:
@@ -161,9 +173,8 @@ class server:
     def send(self, data):
         if self.error or not self.conn:
             return False, "No active connection"
-            
         try:
-            self.conn.sendall(data.encode('utf-8'))
+            self.conn.sendall(len(data).to_bytes(4, 'big') + data)
             return True, "Data sent successfully"
         except BrokenPipeError:
             return False, "Connection broken - cannot send data"
@@ -181,11 +192,23 @@ class server:
             return False, "No active connection"
             
         try:
-            while True:
-                data = self.conn.recv(1024)
-                if not data:
-                    break
-                return True, data
+            hdr = bytearray()
+            while len(hdr) < 4:
+                chunk = self.conn.recv(4 - len(hdr))
+                if not chunk:
+                    return False, "Connection closed while reading length"
+                hdr.extend(chunk)
+            length = int.from_bytes(hdr, 'big')
+
+            # Read payload
+            buf = bytearray()
+            while len(buf) < length:
+                chunk = self.conn.recv(length - len(buf))
+                if not chunk:
+                    return False, "Connection closed while reading payload"
+                buf.extend(chunk)
+
+            return True, bytes(buf)
         except ConnectionResetError:
             return False, "Connection reset by client"
         except ssl.SSLError as e:
@@ -195,7 +218,7 @@ class server:
         except Exception as e:
             return False, f"Unexpected error during receive: {e}"
 
-    def close_connection(self):
+    def close(self):
         if self.conn:
             try:
                 self.conn.close()
@@ -205,62 +228,3 @@ class server:
             except Exception as e:
                 return False, f"Error closing client connection: {e}"
         return True, "No client connection to close"
-
-if __name__ == '__main__':
-    # Server Testing
-    print("=== Starting Server Test ===")
-    server = server('127.0.0.1', 443, "cert.pem", "key.pem")
-    
-    if server.error:
-        print(f"Server initialization failed: {server.error}")
-        if "Certificate" in server.error:
-            print("Please generate certificates using: openssl req -new -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -days 365 -nodes")
-        elif "Permission" in server.error:
-            print("Try running with elevated privileges or use a different port")
-    else:
-        success, message = server.start()
-        print(message)
-        
-        if success:
-            success, message = server.accept()
-            print(message)
-            
-            if success:
-                success, message = server.send('Hello Client!')
-                print(message)
-                
-                success, message = server.receive()
-                if success:
-                    print(f"Received data: {message.decode('utf-8')}")
-                else:
-                    print(f"Receive failed: {message}")
-                
-                server.close_connection()
-        
-        server.stop()
-        print("=== Server Test Completed ===")
-    
-    print("\n" + "="*50 + "\n")
-    
-    # Client Testing
-    print("=== Starting Client Test ===")
-    client = client('127.0.0.1', 443)
-    
-    if client.error:
-        print(f"Client initialization failed: {client.error}")
-    else:
-        success, message = client.connect()
-        print(message)
-        
-        if success:
-            success, message = client.send('Hello Server!')
-            print(message)
-            
-            success, message = client.receive()
-            if success:
-                print(f"Received data: {message.decode('utf-8')}")
-            else:
-                print(f"Receive failed: {message}")
-            
-            client.close()
-        print("=== Client Test Completed ===")

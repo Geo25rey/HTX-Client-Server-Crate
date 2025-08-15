@@ -1,0 +1,13 @@
+[project]
+name = 'HTX-Server-Client-Package-KadenDaya'
+version = '0.1.0'
+authors = [{name='Kaden Daya', email='kaden.daya@icloud.com'}]
+description = '' #TODO
+readme = 'README.md'
+requires-python '>=3.12'
+
+[project.urls]
+Homepage = 'https://github.com/KadenDaya/HTX-Client-Server-Crate/
+
+[build-system]
+requires = []
