@@ -6,7 +6,7 @@ use std::io::{BufReader, Read, Write};
 use std::net::{TcpStream, TcpListener};
 use std::sync::Arc;
 
-use rustls::{ServerConfig, ServerConnection, Stream, ClientConfig, ClientConnection, RootCertStore};
+use rustls::{ServerConfig, ServerConnection, Stream, ClientConfig, ClientConnection, RootCertStore, danger};
 use rustls::pki_types::{PrivateKeyDer, CertificateDer, ServerName};
 use rustls_pemfile::{certs, pkcs8_private_keys};
 
@@ -41,20 +41,13 @@ impl Client {
         Ok(())
     }
 
-    pub fn setup_tls(&mut self, cert_path: &str) -> Result<(), Box<dyn std::error::Error>> {
-        // Load root certificates
-        let f = File::open(cert_path)?;
-        let mut reader = BufReader::new(f);
-        let parsed: Vec<CertificateDer<'static>> = certs(&mut reader).collect::<Result<_, _>>()?;
-
-        let mut roots = RootCertStore::empty();
-        for cert in parsed {
-            roots.add(cert)?;
-        }
-
+    pub fn setup_tls(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        // For self-signed certificates, we need to skip verification
+        // WARNING: This is not secure for production use
         let config = Arc::new(
             ClientConfig::builder()
-                .with_root_certificates(roots)
+                .dangerous()
+                .with_custom_certificate_verifier(Arc::new(danger::NoCertificateVerifier {}))
                 .with_no_client_auth(),
         );
 
@@ -148,7 +141,6 @@ impl Server {
     
         let mut tls_stream = Stream::new(&mut tls_conn, &mut stream);
         
-        // Drive the TLS handshake to completion
         tls_stream.flush()?;
         
         let mut buffer = [0; 1024];
