@@ -17,6 +17,9 @@ class client:
             self.context.verify_mode = ssl.CERT_NONE
             self.context.minimum_version = ssl.TLSVersion.TLSv1_3
             self.context.maximum_version = ssl.TLSVersion.TLSv1_3
+            
+            self.context.set_alpn_protocols(['h2', 'http/1.1'])
+            
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket = self.context.wrap_socket(self.socket, server_hostname=self.host)
         except ssl.SSLError as e:
